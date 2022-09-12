@@ -5,6 +5,11 @@ import PushKit
 import TwilioVoice
 import CallKit
 import UserNotifications
+struct Constants {
+    static let PARAMETER_CALLER_ID      = "CALLER_ID"
+    static let PARAMETER_CALLER_NAME    = "CALLER_DISPLAY_NAME"
+    static let PARAMETER_AVATAR_URL     = "AVATAR_URL"
+}
 
 public class SwiftTwilioVoicePlugin: NSObject, FlutterPlugin,  FlutterStreamHandler, PKPushRegistryDelegate, NotificationDelegate, CallDelegate, AVAudioPlayerDelegate, CXProviderDelegate {
     

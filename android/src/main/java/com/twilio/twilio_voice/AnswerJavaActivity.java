@@ -149,26 +149,17 @@ public class AnswerJavaActivity extends AppCompatActivity {
     private void configCallUI() {
         Log.d(TAG, "configCallUI");
         if (activeCallInvite != null) {
-
-            String fromId = activeCallInvite.getFrom().replace("client:", "");
             SharedPreferences preferences = getApplicationContext().getSharedPreferences(TwilioPreferences, Context.MODE_PRIVATE);
-            String caller = preferences.getString(fromId, preferences.getString("defaultCaller", getString(R.string.unknown_caller)));
-            tvUserName.setText(caller);
+            String callerName = Helper.getUsableName(activeCallInvite, preferences, getString(R.string.unknown_caller));
 
-            btnAnswer.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    Log.d(TAG, "onCLick");
-                    checkPermissionsAndAccept();
-                }
+            tvUserName.setText(callerName);
+
+            btnAnswer.setOnClickListener(v -> {
+                Log.d(TAG, "click: Call Accepted");
+                AnswerJavaActivity.this.checkPermissionsAndAccept();
             });
 
-            btnReject.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    rejectCallClickListener();
-                }
-            });
+            btnReject.setOnClickListener(v -> AnswerJavaActivity.this.rejectCallClickListener());
         }
     }
 

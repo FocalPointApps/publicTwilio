@@ -21,4 +21,9 @@ public class Constants {
     public static final String ACTION_CANCEL_CALL = "ACTION_CANCEL_CALL";
     public static final String ACTION_RETURN_CALL = "ACTION_RETURN_CALL";
     public static final String ACTION_FCM_TOKEN = "ACTION_FCM_TOKEN";
+
+    // Call Custom Parameters
+    public static final String PARAMETER_CALLER_NAME = "CALLER_DISPLAY_NAME";
+    public static final String PARAMETER_CALLER_ID = "CALLER_ID";
+    public static final String CLIENT_DEFAULT_CALLER = "defaultCaller";
 }
