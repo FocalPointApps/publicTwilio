@@ -119,7 +119,6 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
 
     }
 
-
     private void handleIncomingCallIntent(Intent intent) {
         Log.d(TAG, "handleIncomingCallIntent");
         if (intent != null && intent.getAction() != null) {
@@ -340,13 +339,20 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
         }
     }
 
-    private void unregisterForCallInvites(String accessToken) {
-        if(this.fcmToken == null){return;}
+    private boolean unregisterForCallInvites(String accessToken) {
+        if(this.fcmToken == null){
+            return false;
+        }
         Log.i(TAG, "Un-registering with FCM");
         if (accessToken != null) {
             Voice.unregister(accessToken, Voice.RegistrationChannel.FCM, this.fcmToken, unregistrationListener);
+            return true;
         }else if (this.accessToken != null) {
             Voice.unregister(this.accessToken, Voice.RegistrationChannel.FCM, this.fcmToken, unregistrationListener);
+            return true;
+        } else {
+            Log.d(TAG, "unregisterForCallInvites: did not unregister accessToken");
+            return false;
         }
     }
 
@@ -400,11 +406,21 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
             sendPhoneCallEvents(speakerIsOn ? "Speaker On" : "Speaker Off");
 
             result.success(true);
+        } else if (call.method.equals("isOnSpeaker")) {
+            boolean isSpeakerOn = audioManager.isSpeakerphoneOn();
+            result.success(isSpeakerOn);
         } else if (call.method.equals("toggleMute")) {
-          boolean muted = call.argument("muted");
+            boolean muted = call.argument("muted");
             Log.d(TAG, "Muting call");
             this.mute(muted);
             result.success(true);
+        } else if (call.method.equals("isMuted")) {
+            Log.d(TAG, "isMuted invoked");
+            if(activeCall != null) {
+                result.success(activeCall.isMuted());
+            } else {
+                result.success(false);
+            }
         } else if (call.method.equals("call-sid")) {
             result.success(activeCall == null ? null : activeCall.getSid());
         } else if (call.method.equals("isOnCall")) {
@@ -428,8 +444,8 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
             result.success(true);
         } else if (call.method.equals("unregister")) {
             String accessToken = call.argument("accessToken");
-            this.unregisterForCallInvites(accessToken);
-            result.success(true);
+            boolean res = this.unregisterForCallInvites(accessToken);
+            result.success(res);
         } else if (call.method.equals("makeCall")) {
             Log.d(TAG, "Making new call");
             sendPhoneCallEvents("LOG|Making new call");
@@ -511,6 +527,16 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
                 edit.putBoolean("show-notifications", show);
                 edit.apply();
             }
+            // TODO
+        } else if (call.method.equals("show-return-call-option")) {
+            boolean show = call.argument("show");
+            boolean prefsShow = pSharedPref.getBoolean("show-return-call-option", true);
+            if(show != prefsShow){
+                SharedPreferences.Editor edit = pSharedPref.edit();
+                edit.putBoolean("show-return-call-option", show);
+                edit.apply();
+            }
+            result.success(true);
         } else if (call.method.equals("requiresBackgroundPermissions")) {
             String manufacturer = "xiaomi";
             if (manufacturer.equalsIgnoreCase(android.os.Build.MANUFACTURER)) {
@@ -527,6 +553,9 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
                 localIntent.putExtra("extra_pkgname", activity.getPackageName());
                 activity.startActivity(localIntent);
             }
+            result.success(true);
+        } else if (call.method.equals("updateCallKitIcon")) {
+            // we don't use CallKit on Android... yet
             result.success(true);
         } else {
             result.notImplemented();
@@ -687,11 +716,17 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
 
     }
 
-    private void hold() {
+    private void updateHoldState(boolean shouldHold) {
         if (activeCall != null) {
             boolean hold = activeCall.isOnHold();
-            activeCall.hold(!hold);
-            sendPhoneCallEvents(hold ? "Unhold" : "Hold");
+            if (shouldHold && !hold) {
+                activeCall.hold(true);
+                sendPhoneCallEvents("Hold");
+            } else if(!shouldHold && hold) {
+                // hold call only when required to
+                activeCall.hold(false);
+                sendPhoneCallEvents("Unhold");
+            }
         }
     }
 

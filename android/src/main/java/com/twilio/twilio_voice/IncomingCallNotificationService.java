@@ -10,18 +10,23 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
+import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
 
+import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 import androidx.lifecycle.Lifecycle;
 import androidx.lifecycle.ProcessLifecycleOwner;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
+import com.squareup.picasso.Picasso;
+import com.squareup.picasso.Target;
 import com.twilio.voice.CallInvite;
 import com.twilio.voice.CancelledCallInvite;
 
@@ -84,9 +89,19 @@ public class IncomingCallNotificationService extends Service {
 
         Context context = getApplicationContext();
         SharedPreferences preferences = context.getSharedPreferences(TwilioPreferences, Context.MODE_PRIVATE);
+        String caller = Helper.getUsableName(callInvite, preferences, getString(R.string.unknown_caller));
+
         Log.i(TAG, "Setting notification from, " + callInvite.getFrom());
-        String fromId = callInvite.getFrom().replace("client:", "");
-        String caller = preferences.getString(fromId, preferences.getString("defaultCaller", "Unknown caller"));
+
+        // check for image at URL, if available
+        String largeIconUrl = null;
+        if (callInvite.getCustomParameters().containsKey(Constants.PARAMETER_AVATAR_URL)) {
+            String avatarUrl = callInvite.getCustomParameters().get(Constants.PARAMETER_AVATAR_URL);
+            if (avatarUrl != null && avatarUrl.matches("^(http|https)://")) {
+                Log.i(TAG, "Found URL in parameters, adding as large icon");
+                largeIconUrl = avatarUrl;
+            }
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Log.i(TAG, "building notification for new phones");
@@ -94,12 +109,12 @@ public class IncomingCallNotificationService extends Service {
                     pendingIntent,
                     extras,
                     callInvite,
-                    notificationId,
-                    createChannel(channelImportance));
+                    largeIconUrl,
+                    notificationId, createChannel(channelImportance));
         } else {
             Log.i(TAG, "building notification for older phones");
 
-            return new NotificationCompat.Builder(this)
+            NotificationCompat.Builder builder = new NotificationCompat.Builder(this)
                     .setSmallIcon(R.drawable.ic_call_end_white_24dp)
                     .setContentTitle(getApplicationName(context))
                     .setContentText(getString(R.string.new_call, caller))
@@ -112,7 +127,24 @@ public class IncomingCallNotificationService extends Service {
                     .setLights(Color.RED, 3000, 3000)
                     .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                     .setPriority(NotificationCompat.PRIORITY_MAX)
-                    .setColor(Color.rgb(20, 10, 200)).build();
+                    .setColor(Color.rgb(20, 10, 200));
+            Picasso.get().load(largeIconUrl).into(new Target() {
+                        @Override
+                        public void onBitmapLoaded(Bitmap bitmap, Picasso.LoadedFrom from) {
+                            builder.setLargeIcon(bitmap);
+                        }
+
+                        @Override
+                        public void onBitmapFailed(Exception e, Drawable errorDrawable) {
+
+                        }
+
+                        @Override
+                        public void onPrepareLoad(Drawable placeHolderDrawable) {
+
+                        }
+                    });
+            return builder.build();
         }
     }
 
@@ -128,11 +160,13 @@ public class IncomingCallNotificationService extends Service {
      * @param text          the text of the notification
      * @param pendingIntent the body, pending intent for the notification
      * @param extras        extras passed with the notification
+     * @param largeIconUrl  (optional) URL of large icon, loaded with Picasso.
      * @return the builder
      */
     @TargetApi(Build.VERSION_CODES.O)
     private Notification buildNotification(String title, String text, PendingIntent pendingIntent, Bundle extras,
                                            final CallInvite callInvite,
+                                           @Nullable String largeIconUrl,
                                            int notificationId,
                                            String channelId) {
         Log.d(TAG, "Building notification");
@@ -150,21 +184,36 @@ public class IncomingCallNotificationService extends Service {
         PendingIntent piAcceptIntent = PendingIntent.getService(getApplicationContext(), 0, acceptIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 
         long[] mVibratePattern = new long[]{0, 400, 400, 400, 400, 400, 400, 400};
-        Notification.Builder builder =
-                new Notification.Builder(getApplicationContext(), channelId)
-                        .setSmallIcon(R.drawable.ic_call_end_white_24dp)
-                        .setContentTitle(title)
-                        .setContentText(text)
-                        .setCategory(Notification.CATEGORY_CALL)
-                        .setFullScreenIntent(pendingIntent, true)
-                        .setExtras(extras)
-                        .setVibrate(mVibratePattern)
-                        .setAutoCancel(true)
-                        .setVisibility(Notification.VISIBILITY_PUBLIC)
-                        .addAction(android.R.drawable.ic_menu_delete, getString(R.string.decline), piRejectIntent)
-                        .addAction(android.R.drawable.ic_menu_call, getString(R.string.answer), piAcceptIntent)
-                        .setFullScreenIntent(pendingIntent, true);
 
+        Notification.Builder builder = new Notification.Builder(getApplicationContext(), channelId)
+                .setSmallIcon(R.drawable.ic_call_end_white_24dp)
+                .setContentTitle(title)
+                .setContentText(text)
+                .setCategory(Notification.CATEGORY_CALL)
+                .setFullScreenIntent(pendingIntent, true)
+                .setExtras(extras)
+                .setVibrate(mVibratePattern)
+                .setAutoCancel(true)
+                .setVisibility(Notification.VISIBILITY_PUBLIC)
+                .addAction(android.R.drawable.ic_menu_delete, getString(R.string.decline), piRejectIntent)
+                .addAction(android.R.drawable.ic_menu_call, getString(R.string.answer), piAcceptIntent)
+                .setFullScreenIntent(pendingIntent, true);
+        Picasso.get().load(largeIconUrl).into(new Target() {
+            @Override
+            public void onBitmapLoaded(Bitmap bitmap, Picasso.LoadedFrom from) {
+                builder.setLargeIcon(bitmap);
+            }
+
+            @Override
+            public void onBitmapFailed(Exception e, Drawable errorDrawable) {
+
+            }
+
+            @Override
+            public void onPrepareLoad(Drawable placeHolderDrawable) {
+
+            }
+        });
         return builder.build();
     }
 
@@ -236,8 +285,9 @@ public class IncomingCallNotificationService extends Service {
         CancelledCallInvite cancelledCallInvite = intent.getParcelableExtra(Constants.CANCELLED_CALL_INVITE);
         SharedPreferences preferences = getApplicationContext().getSharedPreferences(TwilioPreferences, Context.MODE_PRIVATE);
         boolean prefsShow = preferences.getBoolean("show-notifications", true);
-        if (prefsShow) {
-            buildMissedCallNotification(cancelledCallInvite.getFrom(), cancelledCallInvite.getTo());
+        boolean allowReturnCalls = preferences.getBoolean("show-return-call-option", true);
+        if (prefsShow && allowReturnCalls) {
+            buildMissedCallNotification(cancelledCallInvite.getFrom(), cancelledCallInvite.getTo(), allowReturnCalls);
         }
         endForeground();
         LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
@@ -252,7 +302,7 @@ public class IncomingCallNotificationService extends Service {
     }
 
 
-    private void buildMissedCallNotification(String callerId, String to) {
+    private void buildMissedCallNotification(String callerId, String to, boolean showReturnCallOption) {
 
         String fromId = callerId.replace("client:", "");
         Context context = getApplicationContext();

@@ -21,4 +21,13 @@ public class Constants {
     public static final String ACTION_CANCEL_CALL = "ACTION_CANCEL_CALL";
     public static final String ACTION_RETURN_CALL = "ACTION_RETURN_CALL";
     public static final String ACTION_FCM_TOKEN = "ACTION_FCM_TOKEN";
+
+    // Call Custom Parameters
+    public static final String PARAMETER_CALLER_NAME = "_TWI_CALLER_NAME";
+    public static final String PARAMETER_CALLER_ID = "_TWI_CALLER_ID";
+    public static final String PARAMETER_IMAGE_URL = "_TWI_IMAGE_URL";
+    public static final String PARAMETER_SID = "_TWI_SID";
+    public static final String PARAMETER_TIMESTAMP_CREATED = "_TIMESTAMP_CREATED";
+    public static final String PARAMETER_TIMESTAMP_EXPIRE = "_TIMESTAMP_EXPIRE";
+    public static final String CLIENT_DEFAULT_CALLER = "defaultCaller";
 }
