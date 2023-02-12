@@ -95,8 +95,8 @@ public class IncomingCallNotificationService extends Service {
 
         // check for image at URL, if available
         String largeIconUrl = null;
-        if (callInvite.getCustomParameters().containsKey(Constants.PARAMETER_AVATAR_URL)) {
-            String avatarUrl = callInvite.getCustomParameters().get(Constants.PARAMETER_AVATAR_URL);
+        if (callInvite.getCustomParameters().containsKey(Constants.PARAMETER_IMAGE_URL)) {
+            String avatarUrl = callInvite.getCustomParameters().get(Constants.PARAMETER_IMAGE_URL);
             if (avatarUrl != null && avatarUrl.matches("^(http|https)://")) {
                 Log.i(TAG, "Found URL in parameters, adding as large icon");
                 largeIconUrl = avatarUrl;
